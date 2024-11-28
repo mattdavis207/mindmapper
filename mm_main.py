@@ -1,50 +1,149 @@
 import tkinter as tk
 import math
 from tkinter import *
+from tkinter import colorchooser
+from tkinter import simpledialog
+from tkinter import ttk
+import tkinter.font as tkfont
 
 
 
-#Application object
+#Application object/configuration
 m = tk.Tk(screenName = "Mindmapper", className = 'Mindmapper')
-
 m.title("Mindmapper")
-m.geometry('600x600')
+m.geometry('800x600')
+is_fullscreen = False
+
+
+
+
+
+
+
+
+#Application Functions/Bindings
+#--------------------------------------------------------------------------------------------
+def toggle_fullscreen(event=None):
+    global is_fullscreen
+    is_fullscreen = not is_fullscreen
+    if is_fullscreen:
+        m.attributes("-fullscreen", True)  # Enable fullscreen
+    else:
+        m.attributes("-fullscreen", False)  # Disable fullscreen
+        m.geometry("800x600")  # Set the window size to 600x600
+    
+
+
+
+# Exit full-screen mode with the Escape key
+m.bind("<Escape>", toggle_fullscreen)
+
+
+
+
+
 
 #Configure main grid
 for i in range(3):
     m.grid_rowconfigure(i, weight=1)  # Rows expand proportionally
     m.grid_columnconfigure(i, weight=1)
 
+ 
+m.grid_columnconfigure(0, weight=20, uniform = 'resize')  # PanedWindow column
+m.grid_columnconfigure(1, weight=75, uniform = 'resize')  # Canvas column (more weight = wider)
+m.grid_columnconfigure(2, weight=5, uniform = 'resize')
 
 
 
-#Make a class for the panning and zooming canvas
-class PanZoomCanvasApp:
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+class ShapeCanvas:
     def __init__(self, m):
+        #Pass in main window
         self.m = m
-        self.m.title("Panning and Zooming Canvas")
 
-        
+    
         # Create the Canvas
-        self.canvas = tk.Canvas(m, bg="white")
-        self.canvas.grid(row =1, column = 1, sticky = "nsew")
+        self.canvas = tk.Canvas(self.m, bg="white")
+        self.canvas.grid(row = 1, column = 1, sticky = 'nsew')
         for i in range(3):
             self.canvas.grid_rowconfigure(i, weight=0)  # Rows expand proportionally
-            self.canvas.grid_columnconfigure(i, weight=1)
-
-        # Set the percentage of the window size for the canvas
-        self.canvas_width_percentage = 0.6  # 70% of the window width
-        self.canvas_height_percentage = 0.7  # 70% of the window height
+            self.canvas.grid_columnconfigure(i, weight=1) #Columns expand proportionally
 
 
-         # Create some Frames for Buttons
+        #Tool Panel Setup
+        tool_panel = PanedWindow(bd = 4, relief = 'ridge', bg = "#969998", orient = tk.VERTICAL)
+        tool_panel.grid(row = 0, column = 0,  rowspan=3, sticky='nsew', padx = (10, 10), pady = (10, 10))
+
+        #Panel Title
+        panel_title = Label(tool_panel, text = "Tool Customization")
+        tool_panel.add(panel_title, minsize = 20)
+        tool_panel.paneconfig(panel_title, stretch = "never")
+
+
+        #Text Pane
+        text_pane = tk.Frame(tool_panel, bg="lightblue")
+        tool_panel.add(text_pane, minsize=50)
+        tool_panel.paneconfig(text_pane, stretch = "always")
+
+        #Text Pane Configuration
+        text_pane.grid_rowconfigure(0, weight = 0)
+        text_pane.grid_rowconfigure(1, weight = 30)
+        text_pane.grid_rowconfigure(2, weight = 70)
+        text_pane.grid_columnconfigure(0, weight = 1)
+        text_pane.grid_columnconfigure(1, weight = 1)
+        text_pane.grid_columnconfigure(2, weight = 1)
+        
+
+        #Text Label 
+        add_text = Label(text_pane, text = "Add Text to Shape", width = 15, bg = 'lightblue')
+        add_text.grid(row = 0, column = 0, sticky = 'w')
+
+        #Text Entry/Apply Button
+        self.text_entry = tk.Text(text_pane, height = 10, width = 100)
+        self.text_entry.grid(row = 1, column = 0, pady=(0, 10), padx=(10, 0), sticky = 'n')
+
+
+        apply_text_button = tk.Button(text_pane, text="Apply Text", command=self.apply_text_to_shape, highlightbackground = 'lightblue')
+        apply_text_button.grid(row = 2, column = 0, columnspan = 2)
+
+
+        #Bottom Pane
+        bottom_pane = tk.Frame(tool_panel, bg="lightgreen")
+        tool_panel.add(bottom_pane, minsize = 200)
+        tool_panel.paneconfig(bottom_pane, stretch = "never")
+
+        #Plus Image
+        image = tk.PhotoImage(file="plus_icon.png")
+
+        #Add Shape Button
+        add_shape_button = tk.Button(bottom_pane, image = image, command = self.show_shape_options, width = 20, height = 20)
+        add_shape_button.pack(side = LEFT, padx = (10, 0), pady = (10, 0))
+
+        shape_combobox = ttk.Combobox(bottom_pane, values=["Circle", "Rectangle", "Triangle"], state="readonly")
+        shape_combobox.set("Circle")  # Default to Rectangle
+
+        # Apply button to confirm shape selection
+        apply_button = tk.Button(bottom_pane, text="OK", command=self.apply_shape)
+
+
+
+
+
+
+
+        # Inner Canvas Buttons
+        # Create some Frames for Buttons
         button_frame_1 = tk.Frame(self.canvas, highlightbackground = 'white')
         button_frame_1.grid(row = 0, column = 2, sticky = 'e', pady = (5,0), padx = (0, 5))
         button_frame_1.grid_rowconfigure(0, weight = 1)
         button_frame_2 = tk.Frame(self.canvas, highlightbackground = 'white')
         button_frame_2.grid(row = 0, column = 0, sticky ='w', pady = (5, 0), padx = (5, 0))
 
-        
         # Zoom In Button
         zoom_in_button = tk.Button(button_frame_1, text="+", relief = 'sunken', highlightbackground = 'white', highlightthickness = 0, command=self.zoom_in)
         zoom_in_button.grid(row = 0, column = 1)
@@ -57,58 +156,53 @@ class PanZoomCanvasApp:
         btc_button = tk.Button(button_frame_2, text="Back to Center", relief = 'ridge', highlightbackground = 'white', highlightthickness = 0, command = self.back_to_center)
         btc_button.grid(row = 0, column = 0, sticky = 'nsew')
 
-        
+
+
+
+
+
+
+
+
+
         # Variables for Panning and Zooming
-        self.scale = 1.1  # Zoom scale factor
+        self.scale = 1.0  # Zoom scale factor
         self.offset_x = 0  # Panning offset x
         self.offset_y = 0  # Panning offset y
-        self.start_x = 0  # Initial click x
-        self.start_y = 0  # Initial click y
-        self.move_shape_x = 0 #Moving offset x
-        self.move_shape_y = 0 #Moving offset y
+        self.dx = 0
+        self.dy = 0
 
+        # Set the percentage of the window size for the canvas
+        self.canvas_width_percentage = 0.6  # 70% of the window width
+        self.canvas_height_percentage = 0.7  # 70% of the window height
 
-        # Store the initial scale and offset to reset to later
+        #Shape Data/Intialization
+        self.shape_ids = {}
+        self.selected_shape = None
+        
+        
+        
+
+        # Store the initial scale and offset to reset for backToCenter Button
         self.initial_scale = self.scale
         self.initial_offset_x = self.offset_x
         self.initial_offset_y = self.offset_y
-
-
-
-        
-        # Keep track of drawn shapes
-        self.shape_ids = {}
-        self.selected_shape = None
-        self.prev_x = None
-        self.prev_y = None
-
+        self.initial_x = 0
+        self.initial_y = 0
 
         
-
-
-
-
-
 
         # Binding Mouse Events
-        self.canvas.bind("<ButtonPress-1>", self.start_pan)
-        self.canvas.bind("<B1-Motion>", self.on_drag)
+        self.canvas.bind("<ButtonPress-1>", self.onLeftClick)
+        self.canvas.bind("<B1-Motion>", self.onDrag)
+        self.canvas.bind("<ButtonRelease-1>", self.onRelease)
+        self.canvas.bind("<Button-2>", self.onRightClick)
         self.canvas.bind("<MouseWheel>", self.zoom)
         self.m.bind("<Configure>", self.resize_canvas)
 
 
-
-
-    def on_drag(self, event):
-        """Handle drag motion."""
-        if self.selected_shape:
-            # If a shape is selected, move the shape
-            self.move_shape(event)
-        else:
-            # If no shape is selected, pan the canvas
-            self.pan_canvas(event)
-
-
+#Setup Configuration functions
+#--------------------------------------------------------------------------------------------
 
     def resize_canvas(self, event):
         # Get the current window size
@@ -123,13 +217,173 @@ class PanZoomCanvasApp:
         self.canvas.config(width=new_canvas_width, height=new_canvas_height)
 
 
+    def setup_text_panel(self):
+        """Create a left panel for text input."""
+        text_panel = tk.Frame(self.m, width=200, bg="lightgray")
+        text_panel.grid(row = 1, column = 0)
+
+        tk.Label(text_panel, text="Add Text", bg="lightgray", font=("Arial", 12)).pack(pady=10)
+        
+        # Entry field for text input
+        self.text_entry = tk.Entry(self.text_panel, width=20)
+        self.text_entry.pack(pady=10)
+
+        # Apply text button
+        self.apply_text_button = tk.Button(
+            self.text_panel, text="Apply", command=self.apply_text_to_shape
+        )
+        self.apply_text_button.pack(pady=10)
+
+
+    def show_shape_options():
+        # Show ComboBox for shape selection
+        shape_combobox.pack(padx=10, pady=10)
+        apply_button.pack(pady=10)
+
+        # Disable the "Add Shape" button once the ComboBox is visible
+        add_shape_button.config(state="disabled")
+
+
+    def apply_shape():
+        shape_type = shape_combobox.get()
+        self.add_shape(shape_type)
+        shape_combobox.pack_forget()  # Hide the ComboBox after selection
+        apply_button.pack_forget()   # Hide the Apply button
+        add_shape_button.config(state="normal")  # Re-enable the Add Shape button
+
+
+
+
+
+
+#Click/Motion Event functions 
+#--------------------------------------------------------------------------------------------
+
+
+    def onLeftClick(self, event):
+        print(self.shape_ids)
+        if self.selected_shape is None:
+            self.start_pan(event)
+
+        #Save the click coords
+        self.set_initial_click(event)
+
+    def onDrag(self, event):
+        """Handle drag motion."""
+        if self.selected_shape:
+            # If a shape is selected, move the shape
+            self.move_shape(event)
+            
+        elif not self.check_inside_all(event) and not self.selected_shape:
+            # If no shape is selected, pan the canvas
+            self.pan_canvas(event)
+
+    def onRelease(self, event):
+        self.select_shape(event)
+        
+
+
+    def onRightClick(self, event):
+        #If the click is in a shape
+        if self.check_inside_all(event):  
+
+            #Make this the selected shape
+            self.select_shape(event)
+
+            self.shape_menu = tk.Menu(self.canvas, tearoff=0)
+            self.shape_menu.add_command(label="Resize", command=self.open_resize_dialog)
+            self.shape_menu.add_command(label="Delete", command=self.delete_selected_shape)
+            self.shape_menu.add_separator()
+            self.shape_menu.add_command(label="Change Color", command=self.change_shape_color)
+
+            self.shape_menu.post(event.x_root, event.y_root)
+        else:
+            self.selected_shape = None
+
+
+#Tool Menu Functions 
+#--------------------------------------------------------------------------------------------
+
+    def open_resize_dialog(self):
+        
+        if not self.selected_shape:
+            return
+
+        real_id = self.shape_ids[self.selected_shape][self.selected_shape]
+
+        x1, y1, x2, y2 = self.canvas.bbox(real_id)
+        current_width = x2 - x1
+        current_height = y2 - y1
+
+        # Prompt the user for new dimensions
+        new_width = simpledialog.askinteger("Resize Shape", f"Enter new width (current: {current_width}):")
+        new_height = simpledialog.askinteger("Resize Shape", f"Enter new height (current: {current_height}):")
+
+
+        # Calculate the new coordinates
+        cx = (x1 + x2) / 2  # Center x
+        cy = (y1 + y2) / 2  # Center y
+        half_width = new_width / 2
+        half_height = new_height / 2
+
+        new_x1 = cx - half_width
+        new_y1 = cy - half_height
+        new_x2 = cx + half_width
+        new_y2 = cy + half_height
+
+        #Update shape data
+        self.shape_ids[self.selected_shape]['coords'] = (new_x1, new_y1, new_x2, new_y2)
+
+        # Redraw all shapes
+        self.draw_shapes()
+
+
+
+    def delete_selected_shape(self):
+        if self.selected_shape:
+            del self.shape_ids[self.selected_shape]
+            self.canvas.delete(self.selected_shape)
+            self.selected_shape = None
+            self.draw_shapes()
+            
+    def change_shape_color(self):
+        if self.selected_shape:
+            get_color = colorchooser.askcolor()
+            print(self.shape_ids[self.selected_shape][self.selected_shape])
+            print(get_color, get_color[1])
+            print(self.selected_shape)
+            self.shape_ids[self.selected_shape]['color'] = get_color[1]
+            self.draw_shapes()
+
+
+
+
+
+
+#Panning/Zooming and Button Handling functions
+#--------------------------------------------------------------------------------------------
+
+    def set_initial_click(self, event):
+        self.initial_x = event.x
+        self.initial_y = event.y
+
+        #Check if panned 
+        if self.scale != 1:
+            for shape_id, shape_data in self.shape_ids.items():
+                self.shape_ids[shape_id]["coords"] = self.shape_ids[shape_id]["adj_coords"]
+                original_font_size = shape_data['font_size']
+                scaled_font_size = max(1, round(original_font_size * self.scale))
+                self.shape_ids[shape_id]['font_size'] = scaled_font_size
+            self.scale = 1.0
+        print(self.initial_x, self.initial_y)
+
     def zoom_in(self):
         self.scale *= 1.1
-        self.update_canvas()
+        self.draw_shapes()
 
     def zoom_out(self):
-        self.scale /= 1.1
-        self.update_canvas()
+        self.scale *= 0.9
+        self.draw_shapes()
 
     def zoom(self, event):
         zoom_factor = 1.1 if event.delta > 0 else 0.9
@@ -139,92 +393,45 @@ class PanZoomCanvasApp:
         self.offset_y += (event.y - self.offset_y) * (1 - zoom_factor)
 
         self.scale *= zoom_factor
-        self.update_canvas()
+        self.draw_shapes()
 
     def start_pan(self, event):
-        if self.selected_shape is None:
-            self.start_x = event.x   # Adjust by current offset to prevent "jump"
-            self.start_y = event.y
-        self.prev_x =event.x
-        self.prev_y =event.y
-        print(self.prev_x, self.prev_y)
+        self.start_x = event.x   #First click to get starting coords of pan
+        self.start_y = event.y
         
         
-
+    #Calculate panning change and redraw shapes to reflect change
     def pan_canvas(self, event):
-        if self.selected_shape is None:
-            dx = event.x - self.start_x
-            dy = event.y - self.start_y
-            self.offset_x += dx
-            self.offset_y += dy
-
-
-            self.start_x = event.x
-            self.start_y = event.y
-            self.update_canvas()
+        dx = event.x - self.start_x
+        dy = event.y - self.start_y
+        self.offset_x += dx
+        self.offset_y += dy
+        self.start_x = event.x
+        self.start_y = event.y
+        self.draw_shapes()
 
     def back_to_center(self):
         # Reset scale and offset to their initial values
         self.scale = self.initial_scale
         self.offset_x = self.initial_offset_x
         self.offset_y = self.initial_offset_y
+        self.dx = 0
+        self.dy = 0
+        self.selected_shape = None
+        for shape_id, shape_data in self.shape_ids.items():
+            shape_data["coords"] = shape_data['initial_coords']
+        print(self.shape_ids)
 
         # Update the canvas to reflect the reset state
-        self.update_canvas()
-
-    def update_canvas(self):
-        #Clear the canvas
-        self.canvas.delete("all")
-        
-        #Iterate over the list of shapes and draw them with adjusted coordinates
-        for shape_id, shape_data in self.shape_ids.items():
-            
-            shape_type = shape_data["type"]
-            x1, y1, x2, y2 = shape_data["coords"]
-
-            # Adjust coordinates for scale and offset (without modifying original coords)
-            adj_x1 = (x1 * self.scale) + self.offset_x + self.move_shape_x
-            adj_y1 = (y1 * self.scale) + self.offset_y + self.move_shape_y
-            adj_x2 = (x2 * self.scale) + self.offset_x + self.move_shape_x
-            adj_y2 = (x2 * self.scale) + self.offset_y + self.move_shape_y
-
-
-            # Redraw the shapes with updated coordinates
-            if shape_type == "Circle":
-                new_id = self.canvas.create_oval(adj_x1, adj_y1, adj_x2, adj_y2, fill="blue", outline=shape_data['outline'], width =shape_data['width'], tags=("shape", shape_id))
-            elif shape_type == "Square":
-                new_id = self.canvas.create_rectangle(adj_x1, adj_y1, adj_x2, adj_y2, fill="green", outline=shape_data['outline'], width =shape_data['width'], tags=("shape", shape_id))
-            elif shape_type == "Triangle":
-                points = [adj_x1, adj_y2, (adj_x1 + adj_x2) / 2, adj_y1, adj_x2, adj_y2]
-                new_id = self.canvas.create_polygon(points, fill="yellow", outline=shape_data['outline'], width =shape_data['width'], tags=("shape", shape_id))
-
-
-            # Update the shape ID map
-            self.shape_ids[shape_id][shape_id] = new_id
+        self.draw_shapes()
 
 
 
-
-            #Bind the select_shape
-            self.canvas.bind("<ButtonRelease-1>", self.select_shape)
-            
-
-
-            
-            
-            
-
-            # Highlight if selected
-            if shape_id == self.selected_shape:
-                self.canvas.itemconfig(new_id, outline="red", width = 2)
-
-            
-
-
-
+#Shape Manager Functions
+#--------------------------------------------------------------------------------------------
 
     def add_shape(self, shape_type):
-
+       
 
         # Define an offset feature for shapes
         offset_x = 20  # Horizontal offset (pixels)
@@ -245,77 +452,217 @@ class PanZoomCanvasApp:
             y1 += offset_y
 
             x2, y2 = x1 + 100, y1 + 100  # Calculate the bottom-right corner based on the new position
-            
 
-        #Main shape logic
 
-        shape_index = len(self.shape_ids) + 1 #Get index of shape_id based on how many shapes come before it in the list
-        self.shape_ids[shape_index] = {
+
+
+
+        # Calculate the center of the shape for placing the text
+        text_x = (x1 + x2) / 2
+        text_y = (y1 + y2) / 2
+
+        # Create associated text object for shape
+        text_id = self.canvas.create_text(
+            text_x,
+            text_y,
+            text="Default",  # Default or placeholder text
+            font=("Arial", 12),
+            fill="black"
+        )
+
+        shape_id = len(self.shape_ids) + 1
+
+        self.shape_ids[shape_id] = {
             "type": shape_type,
             "coords": (x1, y1, x2, y2),
             "outline": "black",
             "width": 1,
+            "initial_coords":(x1, y1, x2, y2),
+            "color": 'blue',
+            'text': None,
+            'text_id': text_id,
+            "font_size": 12,
+
         }
 
-        if shape_type == "Circle":
-                canvas_id = self.canvas.create_oval(x1, y1, x2, y2, fill="blue", outline=self.shape_ids[shape_index]['outline'], width =self.shape_ids[shape_index]['width'], tags=(shape_index))
-        elif shape_type == "Square":
-                canvas_id = self.canvas.create_rectangle(x1, y1, x2, y2, fill="blue", outline=self.shape_ids[shape_index]['outline'], width =self.shape_ids[shape_index]['width'], tags=(shape_index))
-        elif shape_type == "Triangle":
-                points = [x1, y2, (x1 + x2) / 2, y1, x2, y2]
-                canvas_id = self.canvas.create_polygon(points, fill="yellow", outline=self.shape_ids[shape_index]['outline'], width =self.shape_ids[shape_index]['width'], tags=(shape_index))
-
-
-
-        # Store the canvas ID in the shape dictionary
-        self.shape_ids[shape_index][shape_index] = canvas_id
-
-
         print(self.shape_ids)
-        self.update_canvas()
+
+        #When adding new shape, draw it on the screen
+        self.draw_shapes() #Pass in specific id associated with the shape
 
 
-    
+    #For all shapes 
+    def draw_shapes(self):
+        self.canvas.delete("all")
+        for shape_id, shape_data in self.shape_ids.items():
+            shape_data = self.shape_ids[shape_id]
+            shape_type = shape_data['type']
+            original_font_size = shape_data["font_size"]
+            x1, y1, x2, y2 = shape_data["coords"]
+
+            adj_x1 = (x1 * self.scale) + self.offset_x + self.dx
+            adj_y1 = (y1 * self.scale) + self.offset_y + self.dy
+            adj_x2 = (x2 * self.scale) + self.offset_x + self.dx
+            adj_y2 = (y2 * self.scale) + self.offset_y + self.dy
+
+            
+            shape_data['adj_coords'] = (adj_x1, adj_y1, adj_x2, adj_y2)
+            
+
+            
+
+            # draw the shapes with updated coordinates
+            if shape_type == "Circle":
+                canvas_id = self.canvas.create_oval(adj_x1, adj_y1, adj_x2, adj_y2, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'])
+            elif shape_type == "Square":
+                canvas_id = self.canvas.create_rectangle(adj_x1, adj_y1, adj_x2, adj_y2, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'])
+            elif shape_type == "Triangle":
+                points = [adj_x1, adj_y2, (adj_x1 + adj_x2) / 2, adj_y1, adj_x2, adj_y2]
+                canvas_id = self.canvas.create_polygon(points, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'], tags=("shape", shape_id))
+            # Update the canvas id as the shape_id
+            self.shape_ids[shape_id][shape_id] = canvas_id
+
+
+            scaled_font_size = max(1, round(original_font_size * self.scale))
+
+            # Draw associated text
+            cx = (adj_x1 + adj_x2) / 2
+            cy = (adj_y1 + adj_y2) / 2
+            text = shape_data['text']
+            text_id = self.canvas.create_text(cx, cy, text=text, font=("Arial", scaled_font_size), fill="black", width = adj_x2-adj_x1)
+            self.shape_ids[shape_id]['text_id'] = text_id
+
+
+
+    #For selected shapes only
+    def destroy_and_redraw(self):
+        #First delete shape and text with it
+        item_id = self.shape_ids[self.selected_shape][self.selected_shape]
+        text_id = self.shape_ids[self.selected_shape]['text_id']
+        self.canvas.delete(item_id)
+        self.canvas.delete(text_id)
+
+
+        shape_data = self.shape_ids[self.selected_shape]
+        shape_type = shape_data['type']
+        original_font_size = shape_data["font_size"]
+        x1, y1, x2, y2 = shape_data["coords"]
+
+        adj_x1 = (x1 * self.scale) + self.offset_x + self.dx
+        adj_y1 = (y1 * self.scale) + self.offset_y + self.dy
+        adj_x2 = (x2 * self.scale) + self.offset_x + self.dx
+        adj_y2 = (y2 * self.scale) + self.offset_y + self.dy
+
+        shape_data['adj_coords'] = (adj_x1, adj_y1, adj_x2, adj_y2)
+        
+
+        # draw the shapes with updated coordinates
+        if shape_type == "Circle":
+            new_id = self.canvas.create_oval(adj_x1, adj_y1, adj_x2, adj_y2, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'])
+        elif shape_type == "Square":
+            new_id = self.canvas.create_rectangle(adj_x1, adj_y1, adj_x2, adj_y2, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'])
+        elif shape_type == "Triangle":
+            points = [adj_x1, adj_y2, (adj_x1 + adj_x2) / 2, adj_y1, adj_x2, adj_y2]
+            new_id = self.canvas.create_polygon(points, fill=shape_data['color'], outline=shape_data['outline'], width =shape_data['width'])
+        # Update the canvas id as the shape_id
+        
+        self.shape_ids[self.selected_shape][self.selected_shape] = new_id
+
+        self.canvas.itemconfig(new_id, outline="red", width=2)
+
+        # Draw associated text in middle of shape
+        scaled_font_size = max(1, round(original_font_size * self.scale))
+        cx = (adj_x1 + adj_x2) / 2
+        cy = (adj_y1 + adj_y2) / 2
+        text = shape_data['text']
+        text_id = self.canvas.create_text(cx, cy, text=text, font=("Arial", scaled_font_size), fill="black", width = adj_x2-adj_x1)
+        self.shape_ids[self.selected_shape]['text_id'] = text_id
+
+
+
+
+
     def select_shape(self, event):
+        #For handling previously selected shape
         prev_selected = self.selected_shape
-        #Check if coords in a shape and then make it highlighted if so
+        if prev_selected != None:
+            canvas_id = self.shape_ids[prev_selected][prev_selected]
+            self.canvas.itemconfig(canvas_id, outline= "black", width = 1)
+
+
+        #Loop through all shapes and check if valid selection
         for shape_id, shape_data in self.shape_ids.items():  
             real_id = shape_data[shape_id]
             if self.check_if_inside(event, real_id):    
-                # Highlight the selected shape
+                
+
+                # Highlight the new selected shape
                 self.selected_shape = shape_id
-                self.prev_x = event.x
-                self.prev_y = event.y
-                self.update_canvas()
+                text_id = self.shape_ids[self.selected_shape]['text_id']
+                existing_text = self.canvas.itemcget(text_id, "text")        
+                self.text_entry.delete("1.0", tk.END)
+                self.text_entry.insert('1.0', existing_text)
+                
+
+                #Update the coords of the shape after its release
+                shape_data = self.shape_ids[self.selected_shape]
+                x1, y1, x2, y2 = shape_data["coords"]
+                if self.offset_x != 0 or self.offset_y != 0:   
+                    #If zoom took place meaning self.scale was changed, then store the transformed cords of the selected shape in
+                    for shape_id, shape_data in self.shape_ids.items():
+                        self.shape_ids[shape_id]["coords"] = self.shape_ids[shape_id]["adj_coords"]
+                    self.offset_x = 0
+                    self.offset_y = 0
+                else:
+                    self.shape_ids[self.selected_shape]["coords"] = (x1 + self.dx, y1 + self.dy, x2 + self.dx, y2 + self.dy)
+
+                self.dx = 0
+                self.dy = 0
+                self.destroy_and_redraw()
                 return 
 
+
+        #If selected_shape did not change and the cursor is not in a shape
         if self.selected_shape == prev_selected:
             self.selected_shape = None
-            self.update_canvas()
-
+            self.text_entry.delete('1.0', tk.END)
+            self.draw_shapes()
+        
 
     def move_shape(self, event):
+        
+        
+        #Get the new position of this event
+        new_x, new_y = event.x, event.y
+        
+
+        #Get change between new event and initial click
+        self.dx = new_x - self.initial_x
+        self.dy = new_y - self.initial_y
+
+       
+        #Transform the shapes by deleting all of them and updating position
+        self.destroy_and_redraw()
+
+
+
+
+
+    def apply_text_to_shape(self):
+        # Apply the text from the entry to the selected shape
         if self.selected_shape:
-            
-
-            print(event.x, event.y, self.prev_x, self.prev_y)
-            #Difference between previous event coords
-            self.move_shape_x = event.x - self.prev_x
-            self.move_shape_y = event.y - self.prev_y
-            
-            
-            # Update the previous position to the current mouse position
-            #self.prev_x = event.x
-            #self.prev_y = event.y
-            self.update_canvas()
-
-
-
-
+            input_text = self.text_entry.get("1.0", tk.END).strip() 
     
+            self.shape_ids[self.selected_shape]['text'] = input_text
+            self.draw_shapes()
 
 
 
+
+
+
+#Helper Functions
+#--------------------------------------------------------------------------------------------
 
 
     def check_if_inside(self, event, real_index):
@@ -334,9 +681,26 @@ class PanZoomCanvasApp:
         else:
             return False
 
-     
+    def check_inside_all(self, event):
+        print(self.shape_ids)
+        for shape_id, shape_data in self.shape_ids.items():
+            #Exclude selected shape
+            real_id = shape_data[shape_id]
+            print(real_id)
+            bbox = self.canvas.bbox(real_id)
+            print(bbox)
+            print(event.x, event.y)
         
-
+            # Get the event coordinates
+            x_event = event.x
+            y_event = event.y
+            
+            # Check if the event coordinates are inside the bounding box
+            x1, y1, x2, y2 = bbox
+            if x1 <= x_event <= x2 and y1 <= y_event <= y2:
+                return True
+            
+        return False
 
 
     def find_closest_shape(self, click_x, click_y):
@@ -374,13 +738,12 @@ class PanZoomCanvasApp:
                 closest_shape_id = shape_id
         
         return closest_shape_id
-        
 
 
 
 
-
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#MenuButtons Class
 
 
 
@@ -454,6 +817,8 @@ class MenuButtons:
 
 
 
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 
@@ -463,7 +828,7 @@ m.config(menu = main_menu)
 
 
 #Make out class objects
-cc = PanZoomCanvasApp(m)
+sc = ShapeCanvas(m)
 mbs = MenuButtons(m, main_menu)
 
 
@@ -501,11 +866,13 @@ mbs.create_menu('Edit',
 add_menu = mbs.create_menu("Add")
 shape_submenu = mbs.create_submenu(add_menu, "Add Shape",
     [
-        ("Circle", lambda: cc.add_shape("Circle")),
-        ("Square", lambda: cc.add_shape("Square")),
-        ("Triangle", lambda: cc.add_shape("Triangle"))
+        ("Circle", lambda: sc.add_shape("Circle")),
+        ("Square", lambda: sc.add_shape("Square")),
+        ("Triangle", lambda: sc.add_shape("Triangle"))
     ]
 )
+
+
 
 
 
