@@ -37,20 +37,21 @@ Mindmapper is an intuitive Python application designed to aid brainstorming, stu
 2. Navigate to the project directory:
    ```bash
    cd mindmapper
+
+   
 3. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-4. Run the application:
+   -Ensure you have the following installed on your system:
+    - **Python 3.x**
+      https://www.python.org/downloads/
+    - **Tkinter**
+      Tkinter is included with Python on MacOS by default.
+    - **Pillow**
+      ```bash
+      pip install Pillow
+5. Run the application:
     ```bash
    python mm_main.py
 
-# Dependencies
-- Python 3.x
-- Tkinter: GUI library included in Python.
-- Pillow: For image processing.
-- SQLite: Embedded database for saving and loading diagrams.
 
-Install Dependencies Using:
 
-```bash
-pip install Pillow
+
